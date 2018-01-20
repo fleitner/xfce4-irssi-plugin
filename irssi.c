@@ -43,13 +43,18 @@ irssi_create(XfcePanelPlugin *plugin)
 }
 
 static void
+irssi_free(XfcePanelPlugin *plugin, struct irssi_plugin *irssi)
+{
+	g_free(irssi);
+}
+
+static void
 irssi_construct (XfcePanelPlugin *plugin)
 {
 	struct irssi_plugin *irssi;
 
 	irssi = irssi_create(plugin);
-
-	g_free(irssi);
+	g_signal_connect(plugin, "free-data", G_CALLBACK(irssi_free), irssi);
 }
 
 XFCE_PANEL_PLUGIN_REGISTER (irssi_construct);

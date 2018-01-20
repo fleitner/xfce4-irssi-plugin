@@ -37,6 +37,8 @@ irssi_create(XfcePanelPlugin *plugin)
 	irssi->plugin = plugin;
 	irssi->image = xfce_panel_image_new_from_source("help-about");
 	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->image), size);
+	xfce_panel_plugin_set_small(plugin, TRUE);
+	gtk_container_add(GTK_CONTAINER(plugin), irssi->image);
 	gtk_widget_show(irssi->image);
 
 	return irssi;

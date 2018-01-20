@@ -21,8 +21,40 @@
 struct irssi_plugin {
 	XfcePanelPlugin *plugin;
 	GtkWidget *image;
+	gint timer;
+	gboolean blinking;
+	gboolean showing;
 };
 
+gint
+irssi_timer_callback(gpointer data)
+{
+	struct irssi_plugin *irssi = (struct irssi_plugin *)data;
+
+	if (irssi->showing) {
+		gtk_widget_hide(irssi->image);
+	} else {
+		gtk_widget_show(irssi->image);
+	}
+
+	irssi->showing = !irssi->showing;
+
+	return TRUE;
+}
+
+static void
+irssi_set_blinking(struct irssi_plugin *irssi, gboolean enable)
+{
+	if (enable && !irssi->blinking) {
+		irssi->blinking = TRUE;
+		irssi->showing = TRUE;
+		irssi->timer = g_timeout_add(1000, irssi_timer_callback, irssi);
+	} else if (!enable && irssi->blinking) {
+		g_source_remove(irssi->timer);
+		irssi->showing = FALSE;
+		gtk_widget_hide(irssi->image);
+	}
+}
 
 static struct irssi_plugin *
 irssi_create(XfcePanelPlugin *plugin)
@@ -39,7 +71,8 @@ irssi_create(XfcePanelPlugin *plugin)
 	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->image), size);
 	xfce_panel_plugin_set_small(plugin, TRUE);
 	gtk_container_add(GTK_CONTAINER(plugin), irssi->image);
-	gtk_widget_show(irssi->image);
+	irssi->blinking = FALSE;
+	irssi->showing = FALSE;
 
 	return irssi;
 }

@@ -20,6 +20,7 @@
 
 struct irssi_plugin {
 	XfcePanelPlugin *plugin;
+	GtkWidget *image;
 };
 
 
@@ -27,9 +28,16 @@ static struct irssi_plugin *
 irssi_create(XfcePanelPlugin *plugin)
 {
 	struct irssi_plugin *irssi;
+	gint size;
+
+	size = xfce_panel_plugin_get_size(plugin)
+		/ xfce_panel_plugin_get_nrows(plugin);
 
 	irssi = g_new(struct irssi_plugin, 1);
 	irssi->plugin = plugin;
+	irssi->image = xfce_panel_image_new_from_source("help-about");
+	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->image), size);
+	gtk_widget_show(irssi->image);
 
 	return irssi;
 }

@@ -18,12 +18,16 @@
 #include <gtk/gtk.h>
 #include <libxfce4panel/libxfce4panel.h>
 
+#define PORT 3154
+
 struct irssi_plugin {
 	XfcePanelPlugin *plugin;
 	GtkWidget *image;
 	gint timer;
 	gboolean blinking;
 	gboolean showing;
+	GSocket *socket;
+	guint watch;
 };
 
 gint
@@ -56,8 +60,15 @@ irssi_set_blinking(struct irssi_plugin *irssi, gboolean enable)
 	}
 }
 
+static gboolean
+irssi_event_handler(GIOChannel *channel, GIOCondition condition,
+		    gpointer data)
+{
+	return TRUE;
+}
+
 static struct irssi_plugin *
-irssi_create(XfcePanelPlugin *plugin)
+irssi_systray_create(XfcePanelPlugin *plugin)
 {
 	struct irssi_plugin *irssi;
 	gint size;
@@ -76,10 +87,43 @@ irssi_create(XfcePanelPlugin *plugin)
 
 	return irssi;
 }
+static int
+irssi_socket_create(struct irssi_plugin *irssi)
+{
+	GError *err = NULL;
+
+	irssi->socket = g_socket_new(G_SOCKET_FAMILY_IPV4,
+				     G_SOCKET_TYPE_DATAGRAM,
+				     G_SOCKET_PROTOCOL_UDP, &err);
+
+	if (err != NULL) {
+		g_printerr("%s: %s", __FUNCTION__, err->message);
+		g_assert(err == NULL);
+	}
+
+	GInetAddress *inet = g_inet_address_new_loopback(G_SOCKET_FAMILY_IPV4);
+	GSocketAddress *addr = g_inet_socket_address_new(inet, PORT);
+	g_socket_bind(irssi->socket, addr, FALSE, &err);
+	if (err != NULL) {
+		g_printerr("%s: %s", __FUNCTION__, err->message);
+		g_assert(err == NULL);
+	}
+
+	int fd = g_socket_get_fd(irssi->socket);
+	GIOChannel* channel = g_io_channel_unix_new(fd);
+	irssi->watch = g_io_add_watch(channel, G_IO_IN, (GIOFunc) irssi_event_handler, irssi);
+	g_io_channel_unref(channel);
+
+	return 0;
+}
 
 static void
 irssi_free(XfcePanelPlugin *plugin, struct irssi_plugin *irssi)
 {
+	GError *err;
+
+	g_source_remove(irssi->watch);
+	g_socket_close(irssi->socket, &err);
 	g_free(irssi);
 }
 
@@ -88,7 +132,8 @@ irssi_construct (XfcePanelPlugin *plugin)
 {
 	struct irssi_plugin *irssi;
 
-	irssi = irssi_create(plugin);
+	irssi = irssi_systray_create(plugin);
+	irssi_socket_create(irssi);
 	g_signal_connect(plugin, "free-data", G_CALLBACK(irssi_free), irssi);
 }
 

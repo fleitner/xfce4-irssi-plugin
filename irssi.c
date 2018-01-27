@@ -24,7 +24,6 @@ struct irssi_plugin {
 	XfcePanelPlugin *plugin;
 	GtkWidget *image;
 	gint timer;
-	gboolean blinking;
 	gboolean showing;
 	GSocket *socket;
 	guint watch;
@@ -49,14 +48,20 @@ irssi_timer_callback(gpointer data)
 static void
 irssi_set_blinking(struct irssi_plugin *irssi, gboolean enable)
 {
-	if (enable && !irssi->blinking) {
-		irssi->blinking = TRUE;
-		irssi->showing = TRUE;
-		irssi->timer = g_timeout_add(1000, irssi_timer_callback, irssi);
-	} else if (!enable && irssi->blinking) {
-		g_source_remove(irssi->timer);
-		irssi->showing = FALSE;
+	if (enable) {
+		if (irssi->timer == 0) {
+			irssi->timer = g_timeout_add(1000,
+						irssi_timer_callback,
+						irssi);
+		}
+	} else {
+		if (irssi->timer > 0) {
+			g_source_remove(irssi->timer);
+			irssi->timer = 0;
+		}
+
 		gtk_widget_hide(irssi->image);
+		irssi->showing = FALSE;
 	}
 }
 
@@ -64,6 +69,28 @@ static gboolean
 irssi_event_handler(GIOChannel *channel, GIOCondition condition,
 		    gpointer data)
 {
+	struct irssi_plugin *irssi = (struct irssi_plugin *)data;
+
+	if (condition == G_IO_IN || condition == G_IO_PRI) {
+		gchar msgid[2];
+		gsize bytes_read;
+		GError *err = NULL;
+
+		g_io_channel_read_chars(channel, msgid, 2, &bytes_read, &err);
+		if (!err) {
+			switch (msgid[0]) {
+			case '1':
+				irssi_set_blinking(irssi, TRUE);
+				break;
+			case '2':
+				irssi_set_blinking(irssi, FALSE);
+				break;
+			}
+		} else {
+			g_printerr("%s: %s", __FUNCTION__, err->message);
+		}
+	}
+
 	return TRUE;
 }
 
@@ -82,7 +109,7 @@ irssi_systray_create(XfcePanelPlugin *plugin)
 	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->image), size);
 	xfce_panel_plugin_set_small(plugin, TRUE);
 	gtk_container_add(GTK_CONTAINER(plugin), irssi->image);
-	irssi->blinking = FALSE;
+	irssi->timer = 0;
 	irssi->showing = FALSE;
 
 	return irssi;

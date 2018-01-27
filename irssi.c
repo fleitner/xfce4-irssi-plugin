@@ -94,6 +94,13 @@ irssi_event_handler(GIOChannel *channel, GIOCondition condition,
 	return TRUE;
 }
 
+void
+irssi_clicked(GtkWidget *widget, GdkEvent *event, gpointer data) {
+	struct irssi_plugin *irssi = (struct irssi_plugin *)data;
+
+	irssi_set_blinking(irssi, FALSE);
+}
+
 static struct irssi_plugin *
 irssi_systray_create(XfcePanelPlugin *plugin)
 {
@@ -111,6 +118,8 @@ irssi_systray_create(XfcePanelPlugin *plugin)
 	gtk_container_add(GTK_CONTAINER(plugin), irssi->image);
 	irssi->timer = 0;
 	irssi->showing = FALSE;
+	g_signal_connect(G_OBJECT(plugin), "button-press-event",
+				G_CALLBACK(irssi_clicked), irssi);
 
 	return irssi;
 }

@@ -22,7 +22,8 @@
 
 struct irssi_plugin {
 	XfcePanelPlugin *plugin;
-	GtkWidget *image;
+	GtkWidget *normal_image;
+	GtkWidget *notify_image;
 	gint timer;
 	gboolean showing;
 	GSocket *socket;
@@ -34,10 +35,12 @@ irssi_timer_callback(gpointer data)
 {
 	struct irssi_plugin *irssi = (struct irssi_plugin *)data;
 
+	gtk_widget_hide(irssi->notify_image);
+	gtk_widget_hide(irssi->normal_image);
 	if (irssi->showing) {
-		gtk_widget_hide(irssi->image);
+		gtk_widget_show(irssi->notify_image);
 	} else {
-		gtk_widget_show(irssi->image);
+		gtk_widget_show(irssi->normal_image);
 	}
 
 	irssi->showing = !irssi->showing;
@@ -50,7 +53,7 @@ irssi_set_blinking(struct irssi_plugin *irssi, gboolean enable)
 {
 	if (enable) {
 		if (irssi->timer == 0) {
-			irssi->timer = g_timeout_add(1000,
+			irssi->timer = g_timeout_add(800,
 						irssi_timer_callback,
 						irssi);
 		}
@@ -60,7 +63,8 @@ irssi_set_blinking(struct irssi_plugin *irssi, gboolean enable)
 			irssi->timer = 0;
 		}
 
-		gtk_widget_hide(irssi->image);
+		gtk_widget_hide(irssi->notify_image);
+		gtk_widget_show(irssi->normal_image);
 		irssi->showing = FALSE;
 	}
 }
@@ -105,24 +109,44 @@ static struct irssi_plugin *
 irssi_systray_create(XfcePanelPlugin *plugin)
 {
 	struct irssi_plugin *irssi;
+	GtkWidget *overlay;
+	GtkWidget *event_box;
 	gint size;
 
+	xfce_panel_plugin_set_small(plugin, TRUE);
 	size = xfce_panel_plugin_get_size(plugin)
 		/ xfce_panel_plugin_get_nrows(plugin);
 
+
 	irssi = g_new(struct irssi_plugin, 1);
 	irssi->plugin = plugin;
-	irssi->image = xfce_panel_image_new_from_source("help-about");
-	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->image), size);
-	xfce_panel_plugin_set_small(plugin, TRUE);
-	gtk_container_add(GTK_CONTAINER(plugin), irssi->image);
 	irssi->timer = 0;
 	irssi->showing = FALSE;
-	g_signal_connect(G_OBJECT(plugin), "button-press-event",
+
+	irssi->normal_image = xfce_panel_image_new_from_source("xfce4-plugin-irssi-normal.png");
+	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->normal_image), size);
+	event_box = gtk_event_box_new();
+	gtk_container_add (GTK_CONTAINER(event_box), irssi->normal_image);
+	overlay = gtk_overlay_new();
+	gtk_overlay_add_overlay(GTK_OVERLAY(overlay), event_box);
+	g_signal_connect(G_OBJECT(event_box), "button-press-event",
 				G_CALLBACK(irssi_clicked), irssi);
+
+	irssi->notify_image = xfce_panel_image_new_from_source("xfce4-plugin-irssi-notify.png");
+	xfce_panel_image_set_size(XFCE_PANEL_IMAGE(irssi->notify_image), size);
+	event_box = gtk_event_box_new();
+	gtk_container_add (GTK_CONTAINER(event_box), irssi->notify_image);
+	gtk_overlay_add_overlay(GTK_OVERLAY(overlay), event_box);
+	g_signal_connect(G_OBJECT(event_box), "button-press-event",
+				G_CALLBACK(irssi_clicked), irssi);
+
+	gtk_container_add(GTK_CONTAINER(plugin), overlay);
+	gtk_widget_show_all(GTK_WIDGET(plugin));
+	irssi_set_blinking(irssi, FALSE);
 
 	return irssi;
 }
+
 static int
 irssi_socket_create(struct irssi_plugin *irssi)
 {

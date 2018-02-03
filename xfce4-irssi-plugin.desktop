@@ -1,0 +1,9 @@
+[Xfce Panel]
+Type=X-XFCE-PanelPlugin
+Encoding=UTF-8
+Name=irssi notifications
+Comment=Provide irssi notifications
+Icon=xfce4-plugin-irssi-notify
+X-XFCE-Internal=FALSE
+X-XFCE-Module=xfce4-irssi-plugin
+X-XFCE-API=2.0

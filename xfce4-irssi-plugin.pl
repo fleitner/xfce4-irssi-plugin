@@ -3,7 +3,7 @@ use Irssi;
 use vars qw($VERSION %IRSSI);
 use HTML::Entities;
 
-$VERSION = "0.1";
+$VERSION = "0.2";
 %IRSSI = (
     authors     => 'Flavio Leitner',
     contact     => 'fbl@sysclose.org',
@@ -21,6 +21,13 @@ sub notify {
     return if ($win_id == $activewin_id);
 
     my $cmd = "EXEC - " .  " exec printf '1' | nc -u 127.0.0.1 3154";
+    $server->command($cmd);
+}
+
+sub notify_acknowledge {
+    my ($server) = @_;
+
+    my $cmd = "EXEC - " .  " exec printf '2' | nc -u 127.0.0.1 3154";
     $server->command($cmd);
 }
 
@@ -56,4 +63,6 @@ sub dcc_request_notify {
 Irssi::signal_add('print text', 'print_text_notify');
 Irssi::signal_add('message private', 'message_private_notify');
 Irssi::signal_add('dcc request', 'dcc_request_notify');
+Irssi::signal_add('message own_public', 'notify_acknowledge');
+Irssi::signal_add('message own_private', 'notify_acknowledge');
 
